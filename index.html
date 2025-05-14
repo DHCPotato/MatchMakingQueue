@@ -134,130 +134,100 @@
     </table>
   </div>
 
-  <script>
-    let currentIds = []; // Global array to track currently displayed IDs
+<script>
+  let currentIds = []; // Global array to track currently displayed IDs
 
-    // Fetch the JSON data and update the table accordingly
-    async function fetchAdoptionQueue() {
-      const url = 'table_data.json'; // JSON file in the same directory
-      try {
-        const response = await fetch(url);
-        if (!response.ok) {
-          throw new Error(`HTTP error! Status: ${response.status}`);
-        }
-        const jsonData = await response.json();
-        console.log(jsonData); // For debugging purposes
-        handleNewData(jsonData);
-      } catch (error) {
-        console.error("Error fetching the JSON data:", error);
-      }
+  // Fetch the JSON data and update the table accordingly
+  async function fetchAdoptionQueue() {
+    const url = 'table_data.json';
+    try {
+      const response = await fetch(url);
+      if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
+      const jsonData = await response.json();
+      handleNewData(jsonData);
+    } catch (error) {
+      console.error("Error fetching the JSON data:", error);
     }
+  }
 
-    // Updated handleNewData function with grouping and sorting
-    function handleNewData(data) {
-      const processingStatus = "Welcome to HSPPR.";
+  function handleNewData(data) {
+    const processingStatus = "Welcome to HSPPR.";
+    const allowedSpecies = new Set(["Dog", "Other Critter"]);
 
-      // Adjust to handle JSON either as an object with a "value" property or as a plain array
-      let dataArray = [];
-      if (data.value) {
-        dataArray = data.value;
-      } else if (Array.isArray(data)) {
-        dataArray = data;
-      } else {
-        console.error("Unexpected JSON structure:", data);
-        return;
+    // Normalize incoming data
+    let dataArray = Array.isArray(data.value) ? data.value : (Array.isArray(data) ? data : []);
+    if (!dataArray.length) return;
+
+    // Build map: ID → latest entry
+    const latestEntryById = {};
+    dataArray.forEach(entry => {
+      const row = entry.values?.[0];
+      if (!row) return;
+
+      const [ id, timeString, /* user */, status, /* other */, /* ... */, /* ... */, /* ... */, species ] = row;
+      // skip any Cats early
+      if (!allowedSpecies.has(species)) return;
+
+      const entryTime = new Date(timeString);
+      const prev = latestEntryById[id];
+      if (!prev || entryTime > new Date(prev.timeString)) {
+        latestEntryById[id] = { id, timeString, status, species };
       }
+    });
 
-      // Group entries by ID and keep only the latest entry (by timestamp in row[1])
-      const latestEntryById = {};
-      dataArray.forEach(entry => {
-        if (!entry.values || !entry.values[0]) return;
-        const row = entry.values[0];
-        const id = row[0];
-        const timeString = row[1];  // Assumed timestamp string
-        const status = row[3];
-        const entryTime = new Date(timeString);
-        // If no entry exists for this ID or this entry is more recent, update it
-        if (!latestEntryById[id] || entryTime > new Date(latestEntryById[id].timeString)) {
-          latestEntryById[id] = {
-            id: id,
-            timeString: timeString,
-            status: status
-          };
-        }
-      });
+    // Filter to only those whose latest status is our processingStatus
+    let processingEntries = Object.values(latestEntryById)
+      .filter(entry => entry.status === processingStatus)
+      // (we already skipped Cats above, so only Dog & Other Critter remain)
+      .sort((a, b) => new Date(a.timeString) - new Date(b.timeString));
 
-      // Only include IDs where the latest entry has the processing status
-      let processingEntries = Object.values(latestEntryById)
-        .filter(entry => entry.status === processingStatus);
+    const newIds = processingEntries.map(e => String(e.id));
+    const addedIds   = newIds.filter(id => !currentIds.includes(id));
+    const removedIds = currentIds.filter(id => !newIds.includes(id));
 
-      // Sort the processing entries by their timeString (earlier first)
-      processingEntries.sort((a, b) => new Date(a.timeString) - new Date(b.timeString));
+    // Animate removals
+    removedIds.forEach(id => {
+      const row = document.querySelector(`tr[data-id="${id}"]`);
+      if (row) {
+        row.classList.add('exit');
+        row.addEventListener('animationend', () => row.remove(), { once: true });
+      }
+    });
 
-      // Build a list of IDs from the sorted entries
-      const newIds = processingEntries.map(entry => String(entry.id));
+    const tbody = document.getElementById("queue-table-body");
 
-      // Determine which IDs to add and remove
-      const addedIds = newIds.filter(id => !currentIds.includes(id));
-      const removedIds = currentIds.filter(id => !newIds.includes(id));
+    // Add new rows
+    addedIds.forEach(id => {
+      let row = document.querySelector(`tr[data-id="${id}"]`);
+      if (!row) {
+        row = document.createElement("tr");
+        row.dataset.id = id;
+        const td = document.createElement("td");
+        td.textContent = id;
+        row.appendChild(td);
+        row.classList.add('enter');
+        requestAnimationFrame(() => row.classList.add('enter-active'));
+        tbody.appendChild(row);
+      }
+    });
 
-      // Animate removal of rows for IDs that are no longer valid
-      removedIds.forEach(id => {
-        const row = document.querySelector(`tr[data-id="${id}"]`);
-        if (row) {
-          row.classList.add('exit');
-          row.addEventListener('animationend', () => {
-            row.remove();
-          }, { once: true });
-        }
-      });
+    // Reorder rows
+    newIds.forEach(id => {
+      const row = document.querySelector(`tr[data-id="${id}"]`);
+      if (row) tbody.appendChild(row);
+    });
 
-      const tableBody = document.getElementById("queue-table-body");
+    // Highlight next-in-line
+    tbody.querySelectorAll("tr").forEach((row, i) => {
+      row.classList.toggle("next-in-line", i === 0);
+    });
 
-      // Add new rows for IDs that are newly added
-      addedIds.forEach(id => {
-        let row = document.querySelector(`tr[data-id="${id}"]`);
-        if (!row) {
-          row = document.createElement("tr");
-          row.setAttribute("data-id", id);
-          const td = document.createElement("td");
-          td.textContent = id;
-          row.appendChild(td);
-          // Animate newly added rows
-          row.classList.add('enter');
-          requestAnimationFrame(() => {
-            row.classList.add('enter-active');
-          });
-          tableBody.appendChild(row);
-        }
-      });
+    currentIds = newIds;
+  }
 
-      // Reorder rows in the DOM to match the sorted list of IDs
-      newIds.forEach(id => {
-        const row = document.querySelector(`tr[data-id="${id}"]`);
-        if (row) {
-          tableBody.appendChild(row);
-        }
-      });
-
-      // Highlight the next-in-line (first) row
-      const allRows = tableBody.querySelectorAll("tr");
-      allRows.forEach((row, index) => {
-        if (index === 0) {
-          row.classList.add("next-in-line");
-        } else {
-          row.classList.remove("next-in-line");
-        }
-      });
-
-      // Update currentIds for future comparisons
-      currentIds = newIds;
-    }
-
-    // Initial fetch on page load
-    fetchAdoptionQueue();
-    // Poll for updates every 10 seconds
-    setInterval(fetchAdoptionQueue, 10000);
-  </script>
+  // kick off & poll
+  fetchAdoptionQueue();
+  setInterval(fetchAdoptionQueue, 10000);
+</script>
 </body>
 </html>
