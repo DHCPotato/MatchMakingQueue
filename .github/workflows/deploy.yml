@@ -1,0 +1,28 @@
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches:
+      - main  # Or 'master', depending on your repo
+
+permissions:
+  contents: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js (required by gh-pages)
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Install gh-pages
+        run: npm install gh-pages --save-dev
+
+      - name: Deploy to GitHub Pages
+        run: |
+          npx gh-pages -d . -b gh-pages
