@@ -79,23 +79,6 @@
     tr.exit         { animation: fadeOut 0.5s forwards; }
     @keyframes fadeOut {
       to { opacity: 0; transform: translateX(20px); }
-    }
-
-    /* Paw-print rain */
-    .paw {
-      position: fixed;
-      top: -50px;
-      font-size: 2rem;
-      opacity: 0.8;
-      pointer-events: none;
-      animation: fall 5s linear forwards;
-    }
-    @keyframes fall {
-      to {
-        transform: translateY(110vh) rotate(30deg);
-        opacity: 0;
-      }
-    }
 
     /* Larger-screen tweaks */
     @media screen and (min-width: 2560px) {
@@ -206,16 +189,6 @@
       });
 
       currentIds = newIds;
-    }
-
-    // Paw-print dropper
-    function dropPaw() {
-      const paw = document.createElement('div');
-      paw.className = 'paw';
-      paw.textContent = '🐾';
-      paw.style.left = Math.random() * 90 + 'vw';
-      document.body.appendChild(paw);
-      setTimeout(() => paw.remove(), 5500);
     }
 
     fetchAdoptionQueue();
