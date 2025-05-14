@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Visitation Queue</title>
+  <style>
+    /* Overall page and background styling */
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background-image: url("background2.png");
+      background-size: cover;
+      background-position: center center;
+      background-repeat: no-repeat;
+      text-align: center;
+      font-family: Arial, Helvetica, sans-serif;
+    }
+    /* Container to center content vertically & horizontally */
+    .container {
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-start;
+      align-items: center;
+      height: 100%;
+      padding: 1rem;
+      margin: auto;
+      max-width: 1200px;
+    }
+    /* Header styling */
+    h2 {
+      margin: 0;
+      font-size: 4rem;
+      color: #fff;
+    }
+    /* Table styling */
+    table {
+      border-collapse: separate;
+      border-spacing: 1rem;
+      margin-bottom: 2rem;
+      width: 80%;
+      max-width: 800px;
+    }
+    th {
+      background-color: #337882;
+      color: #fff;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+      border-radius: 40px;
+      padding: 1rem;
+      text-align: center;
+      font-size: 2.5rem;
+    }
+    td {
+      padding: 1rem;
+      text-align: center;
+      font-size: 2rem;
+      border-radius: 40px;
+      /* Gradient from white to gray */
+      background: linear-gradient(to bottom, #fff 0%, #808080 100%);
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+      font-weight: bold;
+    }
+    /* Next-in-Line pulsing highlight */
+    .next-in-line {
+      animation: pulse 2s infinite;
+      border-radius: 40px;
+    }
+    @keyframes pulse {
+      0% {
+        box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.6);
+      }
+      50% {
+        box-shadow: 0 0 20px 10px rgba(255, 255, 255, 0);
+      }
+      100% {
+        box-shadow: 0 0 0 0 rgba(255, 255, 255, 0);
+      }
+    }
+    /* Animation for newly added rows */
+    tr.enter {
+      opacity: 0;
+      transform: translateX(-20px);
+    }
+    tr.enter-active {
+      transition: all 0.5s ease;
+      opacity: 1;
+      transform: translateX(0);
+    }
+    /* Animation for rows being removed */
+    tr.exit {
+      animation: fadeOut 0.5s forwards;
+    }
+    @keyframes fadeOut {
+      to {
+        opacity: 0;
+        transform: translateX(20px);
+      }
+    }
+    /* Media query for larger screens (e.g., 27in monitors) */
+    @media screen and (min-width: 2560px) {
+      h2 {
+        font-size: 5rem;
+      }
+      th {
+        font-size: 3rem;
+        padding: 1.2rem;
+      }
+      td {
+        font-size: 2.5rem;
+        padding: 1.2rem;
+      }
+      table {
+        width: 70%;
+        max-width: 1000px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2>Visitation Queue</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>ID</th>
+        </tr>
+      </thead>
+      <tbody id="queue-table-body">
+        <!-- Data will be inserted here -->
+      </tbody>
+    </table>
+  </div>
+
+  <script>
+    let currentIds = []; // Global array to track currently displayed IDs
+
+    // Fetch the JSON data and update the table accordingly
+    async function fetchAdoptionQueue() {
+      const url = 'table_data.json'; // JSON file in the same directory
+      try {
+        const response = await fetch(url);
+        if (!response.ok) {
+          throw new Error(`HTTP error! Status: ${response.status}`);
+        }
+        const jsonData = await response.json();
+        console.log(jsonData); // For debugging purposes
+        handleNewData(jsonData);
+      } catch (error) {
+        console.error("Error fetching the JSON data:", error);
+      }
+    }
+
+    // Updated handleNewData function with grouping and sorting
+    function handleNewData(data) {
+      const processingStatus = "Welcome to HSPPR.";
+
+      // Adjust to handle JSON either as an object with a "value" property or as a plain array
+      let dataArray = [];
+      if (data.value) {
+        dataArray = data.value;
+      } else if (Array.isArray(data)) {
+        dataArray = data;
+      } else {
+        console.error("Unexpected JSON structure:", data);
+        return;
+      }
+
+      // Group entries by ID and keep only the latest entry (by timestamp in row[1])
+      const latestEntryById = {};
+      dataArray.forEach(entry => {
+        if (!entry.values || !entry.values[0]) return;
+        const row = entry.values[0];
+        const id = row[0];
+        const timeString = row[1];  // Assumed timestamp string
+        const status = row[3];
+        const entryTime = new Date(timeString);
+        // If no entry exists for this ID or this entry is more recent, update it
+        if (!latestEntryById[id] || entryTime > new Date(latestEntryById[id].timeString)) {
+          latestEntryById[id] = {
+            id: id,
+            timeString: timeString,
+            status: status
+          };
+        }
+      });
+
+      // Only include IDs where the latest entry has the processing status
+      let processingEntries = Object.values(latestEntryById)
+        .filter(entry => entry.status === processingStatus);
+
+      // Sort the processing entries by their timeString (earlier first)
+      processingEntries.sort((a, b) => new Date(a.timeString) - new Date(b.timeString));
+
+      // Build a list of IDs from the sorted entries
+      const newIds = processingEntries.map(entry => String(entry.id));
+
+      // Determine which IDs to add and remove
+      const addedIds = newIds.filter(id => !currentIds.includes(id));
+      const removedIds = currentIds.filter(id => !newIds.includes(id));
+
+      // Animate removal of rows for IDs that are no longer valid
+      removedIds.forEach(id => {
+        const row = document.querySelector(`tr[data-id="${id}"]`);
+        if (row) {
+          row.classList.add('exit');
+          row.addEventListener('animationend', () => {
+            row.remove();
+          }, { once: true });
+        }
+      });
+
+      const tableBody = document.getElementById("queue-table-body");
+
+      // Add new rows for IDs that are newly added
+      addedIds.forEach(id => {
+        let row = document.querySelector(`tr[data-id="${id}"]`);
+        if (!row) {
+          row = document.createElement("tr");
+          row.setAttribute("data-id", id);
+          const td = document.createElement("td");
+          td.textContent = id;
+          row.appendChild(td);
+          // Animate newly added rows
+          row.classList.add('enter');
+          requestAnimationFrame(() => {
+            row.classList.add('enter-active');
+          });
+          tableBody.appendChild(row);
+        }
+      });
+
+      // Reorder rows in the DOM to match the sorted list of IDs
+      newIds.forEach(id => {
+        const row = document.querySelector(`tr[data-id="${id}"]`);
+        if (row) {
+          tableBody.appendChild(row);
+        }
+      });
+
+      // Highlight the next-in-line (first) row
+      const allRows = tableBody.querySelectorAll("tr");
+      allRows.forEach((row, index) => {
+        if (index === 0) {
+          row.classList.add("next-in-line");
+        } else {
+          row.classList.remove("next-in-line");
+        }
+      });
+
+      // Update currentIds for future comparisons
+      currentIds = newIds;
+    }
+
+    // Initial fetch on page load
+    fetchAdoptionQueue();
+    // Poll for updates every 10 seconds
+    setInterval(fetchAdoptionQueue, 10000);
+  </script>
+</body>
+</html>
