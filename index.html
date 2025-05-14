@@ -54,8 +54,6 @@
       text-align: center;
       font-size: 2.5rem;
     }
-
-    /* Number column gets same styling as default */
     td.number-cell {
       padding: 1rem;
       text-align: center;
@@ -65,23 +63,38 @@
       box-shadow: 0 4px 6px rgba(0,0,0,0.3);
       font-weight: bold;
     }
-
-    /* ID column is a bit bigger */
     td.id-cell {
       padding: 1rem;
       text-align: center;
-      font-size: 2.5rem;       /* ↑ bumped up */
+      font-size: 2.5rem;
       border-radius: 40px;
       background: linear-gradient(to bottom, #fff 0%, #808080 100%);
       box-shadow: 0 4px 6px rgba(0,0,0,0.3);
       font-weight: bold;
     }
-    /* Animations for rows in/out */
-    tr.enter       { opacity: 0; transform: translateX(-20px); }
+
+    /* Row animations */
+    tr.enter        { opacity: 0; transform: translateX(-20px); }
     tr.enter-active { transition: all 0.5s ease; opacity: 1; transform: translateX(0); }
-    tr.exit        { animation: fadeOut 0.5s forwards; }
+    tr.exit         { animation: fadeOut 0.5s forwards; }
     @keyframes fadeOut {
       to { opacity: 0; transform: translateX(20px); }
+    }
+
+    /* Paw-print rain */
+    .paw {
+      position: fixed;
+      top: -50px;
+      font-size: 2rem;
+      opacity: 0.8;
+      pointer-events: none;
+      animation: fall 5s linear forwards;
+    }
+    @keyframes fall {
+      to {
+        transform: translateY(110vh) rotate(30deg);
+        opacity: 0;
+      }
     }
 
     /* Larger-screen tweaks */
@@ -128,13 +141,11 @@
       const processingStatus = "Welcome to HSPPR.";
       const allowedSpecies = new Set(["Dog","Other Critter"]);
 
-      // Normalize
       const dataArray = Array.isArray(data.value)
         ? data.value
         : (Array.isArray(data) ? data : []);
       if (!dataArray.length) return;
 
-      // Latest-by-ID map
       const latest = {};
       dataArray.forEach(entry => {
         const row = entry.values?.[0];
@@ -147,7 +158,6 @@
         }
       });
 
-      // Filter & sort
       const processing = Object.values(latest)
         .filter(e => e.status === processingStatus)
         .sort((a,b) => new Date(a.timeString) - new Date(b.timeString));
@@ -156,7 +166,6 @@
       const added   = newIds.filter(id => !currentIds.includes(id));
       const removed = currentIds.filter(id => !newIds.includes(id));
 
-      // Remove old
       removed.forEach(id => {
         const row = document.querySelector(`tr[data-id="${id}"]`);
         if (!row) return;
@@ -166,7 +175,6 @@
 
       const tbody = document.getElementById("queue-table-body");
 
-      // Add new rows (with two cells)
       added.forEach(id => {
         if (document.querySelector(`tr[data-id="${id}"]`)) return;
         const tr = document.createElement("tr");
@@ -186,17 +194,13 @@
         tbody.appendChild(tr);
       });
 
-      // Reorder and renumber
       newIds.forEach((id, idx) => {
         const row = document.querySelector(`tr[data-id="${id}"]`);
         if (!row) return;
         tbody.appendChild(row);
-        // update the position number
-        const numCell = row.querySelector("td.number-cell");
-        numCell.textContent = idx + 1;
+        row.querySelector("td.number-cell").textContent = idx + 1;
       });
 
-      // Highlight first row
       tbody.querySelectorAll("tr").forEach((row,i) => {
         row.classList.toggle("next-in-line", i===0);
       });
@@ -204,8 +208,20 @@
       currentIds = newIds;
     }
 
+    // Paw-print dropper
+    function dropPaw() {
+      const paw = document.createElement('div');
+      paw.className = 'paw';
+      paw.textContent = '🐾';
+      paw.style.left = Math.random() * 90 + 'vw';
+      document.body.appendChild(paw);
+      setTimeout(() => paw.remove(), 5500);
+    }
+
     fetchAdoptionQueue();
     setInterval(fetchAdoptionQueue, 10000);
+    setInterval(dropPaw, 25000);  // every 25s, drop a paw
   </script>
 </body>
 </html>
+
