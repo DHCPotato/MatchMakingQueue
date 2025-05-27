@@ -3,9 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Visitation Queue</title>
+  <title>Matchmaking Queue</title>
   <style>
-    /* Overall page and background styling */
     html, body {
       margin: 0; padding: 0;
       width: 100%; height: 100%;
@@ -17,8 +16,6 @@
       text-align: center;
       font-family: Arial, Helvetica, sans-serif;
     }
-
-    /* Container to center content vertically & horizontally */
     .container {
       display: flex;
       flex-direction: column;
@@ -29,15 +26,11 @@
       margin: auto;
       max-width: 1200px;
     }
-
-    /* Header styling */
     h2 {
       margin: 0;
       font-size: 4rem;
       color: #fff;
     }
-
-    /* Table styling */
     table {
       border-collapse: separate;
       border-spacing: 1rem;
@@ -72,15 +65,12 @@
       box-shadow: 0 4px 6px rgba(0,0,0,0.3);
       font-weight: bold;
     }
-
-    /* Row animations */
     tr.enter        { opacity: 0; transform: translateX(-20px); }
     tr.enter-active { transition: all 0.5s ease; opacity: 1; transform: translateX(0); }
     tr.exit         { animation: fadeOut 0.5s forwards; }
     @keyframes fadeOut {
       to { opacity: 0; transform: translateX(20px); }
-
-    /* Larger-screen tweaks */
+    }
     @media screen and (min-width: 2560px) {
       h2 { font-size: 5rem; }
       th { font-size: 3rem; padding: 1.2rem; }
@@ -92,7 +82,7 @@
 </head>
 <body>
   <div class="container">
-    <h2>Visitation Queue</h2>
+    <h2>Matchmaking Queue</h2>
     <table>
       <thead>
         <tr>
@@ -100,9 +90,7 @@
           <th>ID</th>
         </tr>
       </thead>
-      <tbody id="queue-table-body">
-        <!-- Rows go here -->
-      </tbody>
+      <tbody id="queue-table-body"></tbody>
     </table>
   </div>
 
@@ -122,13 +110,14 @@
 
     function handleNewData(data) {
       const processingStatus = "Welcome to HSPPR.";
-      const allowedSpecies = new Set(["Dog","Other Critter"]);
+      const allowedSpecies = new Set(["Dog", "Other Critter"]);
 
       const dataArray = Array.isArray(data.value)
         ? data.value
         : (Array.isArray(data) ? data : []);
       if (!dataArray.length) return;
 
+      // 1) pick the latest entry per ID
       const latest = {};
       dataArray.forEach(entry => {
         const row = entry.values?.[0];
@@ -141,42 +130,41 @@
         }
       });
 
+      // 2) filter by processingStatus, then SORT BY numeric ID
       const processing = Object.values(latest)
         .filter(e => e.status === processingStatus)
-        .sort((a,b) => new Date(a.timeString) - new Date(b.timeString));
+        .sort((a, b) => Number(a.id) - Number(b.id));
 
-      const newIds = processing.map(e => String(e.id));
-      const added   = newIds.filter(id => !currentIds.includes(id));
-      const removed = currentIds.filter(id => !newIds.includes(id));
+      const newIds   = processing.map(e => String(e.id));
+      const added    = newIds.filter(id => !currentIds.includes(id));
+      const removed  = currentIds.filter(id => !newIds.includes(id));
+      const tbody    = document.getElementById("queue-table-body");
 
+      // remove rows that no longer qualify
       removed.forEach(id => {
         const row = document.querySelector(`tr[data-id="${id}"]`);
         if (!row) return;
         row.classList.add('exit');
-        row.addEventListener('animationend', () => row.remove(), { once:true });
+        row.addEventListener('animationend', () => row.remove(), { once: true });
       });
 
-      const tbody = document.getElementById("queue-table-body");
-
+      // add any brand-new IDs
       added.forEach(id => {
         if (document.querySelector(`tr[data-id="${id}"]`)) return;
         const tr = document.createElement("tr");
         tr.dataset.id = id;
-
         const numTd = document.createElement("td");
         numTd.classList.add("number-cell");
-        tr.appendChild(numTd);
-
-        const idTd = document.createElement("td");
+        const idTd  = document.createElement("td");
         idTd.classList.add("id-cell");
         idTd.textContent = id;
-        tr.appendChild(idTd);
-
+        tr.append(numTd, idTd);
         tr.classList.add('enter');
         requestAnimationFrame(() => tr.classList.add('enter-active'));
         tbody.appendChild(tr);
       });
 
+      // reorder & renumber
       newIds.forEach((id, idx) => {
         const row = document.querySelector(`tr[data-id="${id}"]`);
         if (!row) return;
@@ -184,8 +172,9 @@
         row.querySelector("td.number-cell").textContent = idx + 1;
       });
 
-      tbody.querySelectorAll("tr").forEach((row,i) => {
-        row.classList.toggle("next-in-line", i===0);
+      // highlight the next-in-line (first) row
+      tbody.querySelectorAll("tr").forEach((row, i) => {
+        row.classList.toggle("next-in-line", i === 0);
       });
 
       currentIds = newIds;
@@ -193,7 +182,9 @@
 
     fetchAdoptionQueue();
     setInterval(fetchAdoptionQueue, 10000);
-    setInterval(dropPaw, 25000);  // every 25s, drop a paw
+    setInterval(() => {
+      if (typeof dropPaw === 'function') dropPaw();
+    }, 25000);
   </script>
 </body>
 </html>
