@@ -1,0 +1,40 @@
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches:
+      - main  # Or 'master', depending on your repo
+
+permissions:
+  contents: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js (required by gh-pages)
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Configure Git for gh-pages
+        run: |
+          git config --global user.name  "github-actions[bot]"
+          git config --global user.email "actions@github.com"
+
+      - name: Install gh-pages
+        run: npm install gh-pages --save-dev
+
+      - name: Deploy to GitHub Pages
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # override the repo URL so it uses the token when pushing
+          REPO_URL="https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git"
+          npx gh-pages -d . -b gh-pages -r "$REPO_URL"
+
+
