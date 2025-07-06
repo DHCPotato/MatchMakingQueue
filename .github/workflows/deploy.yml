@@ -20,7 +20,6 @@ jobs:
         with:
           node-version: '18'
 
-      # ←— teach the runner who “you” are
       - name: Configure Git for gh-pages
         run: |
           git config --global user.name  "github-actions[bot]"
@@ -32,6 +31,10 @@ jobs:
       - name: Deploy to GitHub Pages
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          npx gh-pages -d . -b gh-pages
+          # override the repo URL so it uses the token when pushing
+          REPO_URL="https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git"
+          npx gh-pages -d . -b gh-pages -r "$REPO_URL"
+
 
