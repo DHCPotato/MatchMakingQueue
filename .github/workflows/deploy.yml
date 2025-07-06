@@ -20,7 +20,7 @@ jobs:
         with:
           node-version: '18'
 
-      # ←— ADD THIS: teach the runner who “you” are
+      # ←— teach the runner who “you” are
       - name: Configure Git for gh-pages
         run: |
           git config --global user.name  "github-actions[bot]"
@@ -30,5 +30,8 @@ jobs:
         run: npm install gh-pages --save-dev
 
       - name: Deploy to GitHub Pages
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           npx gh-pages -d . -b gh-pages
+
