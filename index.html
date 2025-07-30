@@ -109,11 +109,7 @@
     }
 
     function handleNewData(data) {
-      // now match either of these two statuses
-      const processingStatuses = new Set([
-        "Welcome to HSPPR.",
-        "We are ready to see you."
-      ]);
+      const processingStatus = "Start";
       const allowedSpecies = new Set(["Dog", "Other Critter"]);
 
       const dataArray = Array.isArray(data.value)
@@ -134,9 +130,9 @@
         }
       });
 
-      // 2) filter by processingStatuses, then SORT BY numeric ID
+      // 2) filter by processingStatus, then SORT BY numeric ID
       const processing = Object.values(latest)
-        .filter(e => processingStatuses.has(e.status))
+        .filter(e => e.status === processingStatus)
         .sort((a, b) => Number(a.id) - Number(b.id));
 
       const newIds   = processing.map(e => String(e.id));
