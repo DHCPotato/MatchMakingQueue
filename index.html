@@ -132,23 +132,23 @@
       const dataArray = Array.isArray(data.value) ? data.value : (Array.isArray(data) ? data : []);
       if (!dataArray.length) return;
 
-      // === LEFT: Show latest 'Start' status entries ===
+      // === LEFT: Show latest 'Start' status entries AND allowed species ===
       const latestById = {};
       dataArray.forEach(entry => {
         const row = entry.values?.[0];
         if (!row) return;
-        const [id, ts, , status] = row;
+        const [id, ts, , status, , , , , species] = row;
         const time = new Date(ts);
         if (!latestById[id] || time > new Date(latestById[id].ts)) {
-          latestById[id] = { id, ts, status };
+          latestById[id] = { id, ts, status, species };
         }
       });
 
       const startQueue = Object.values(latestById)
-        .filter(e => e.status === "Start")
+        .filter(e => e.status === "Start" && allowedSpecies.has(e.species))
         .sort((a, b) => Number(a.id) - Number(b.id));
 
-      // === RIGHT: Only include if most recent status is "Ready Visit" ===
+      // === RIGHT: Only include if most recent status is "Ready Visit" AND allowed species ===
       const seenLatestStatus = {};
       for (let i = dataArray.length - 1; i >= 0; i--) {
         const row = dataArray[i].values?.[0];
@@ -224,5 +224,6 @@
   </script>
 </body>
 </html>
+
 
 
