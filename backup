@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Matchmaking Queue</title>
+  <style>
+    html, body {
+      margin: 0; padding: 0;
+      width: 100%; height: 100%;
+      overflow: hidden;
+      background-image: url("background2.png");
+      background-size: cover;
+      background-position: center center;
+      background-repeat: no-repeat;
+      text-align: center;
+      font-family: Arial, Helvetica, sans-serif;
+    }
+    .container {
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-start;
+      align-items: center;
+      height: 100%;
+      padding: 1rem;
+      margin: auto;
+      max-width: 1200px;
+    }
+    h2 {
+      margin: 0;
+      font-size: 4rem;
+      color: #fff;
+    }
+    table {
+      border-collapse: separate;
+      border-spacing: 1rem;
+      margin-bottom: 2rem;
+      width: 80%;
+      max-width: 800px;
+    }
+    th {
+      background-color: #337882;
+      color: #fff;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+      border-radius: 40px;
+      padding: 1rem;
+      text-align: center;
+      font-size: 2.5rem;
+    }
+    td.number-cell {
+      padding: 1rem;
+      text-align: center;
+      font-size: 2rem;
+      border-radius: 40px;
+      background: linear-gradient(to bottom, #fff 0%, #808080 100%);
+      box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+      font-weight: bold;
+    }
+    td.id-cell {
+      padding: 1rem;
+      text-align: center;
+      font-size: 2.5rem;
+      border-radius: 40px;
+      background: linear-gradient(to bottom, #fff 0%, #808080 100%);
+      box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+      font-weight: bold;
+    }
+    tr.enter        { opacity: 0; transform: translateX(-20px); }
+    tr.enter-active { transition: all 0.5s ease; opacity: 1; transform: translateX(0); }
+    tr.exit         { animation: fadeOut 0.5s forwards; }
+    @keyframes fadeOut {
+      to { opacity: 0; transform: translateX(20px); }
+    }
+    @media screen and (min-width: 2560px) {
+      h2 { font-size: 5rem; }
+      th { font-size: 3rem; padding: 1.2rem; }
+      td.number-cell { font-size: 2.5rem; padding: 1.2rem; }
+      td.id-cell     { font-size: 3rem;   padding: 1.2rem; }
+      table { width: 70%; max-width: 1000px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2>Visitation/Matchmaking</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>ID</th>
+        </tr>
+      </thead>
+      <tbody id="queue-table-body"></tbody>
+    </table>
+  </div>
+
+  <script>
+    let currentIds = [];
+
+    async function fetchAdoptionQueue() {
+      try {
+        const resp = await fetch('table_data.json');
+        if (!resp.ok) throw new Error(resp.status);
+        const data = await resp.json();
+        handleNewData(data);
+      } catch (e) {
+        console.error("Fetch error:", e);
+      }
+    }
+
+    function handleNewData(data) {
+      const processingStatus = "Start";
+      const allowedSpecies = new Set(["Dog", "Other Critter"]);
+
+      const dataArray = Array.isArray(data.value)
+        ? data.value
+        : (Array.isArray(data) ? data : []);
+      if (!dataArray.length) return;
+
+      // 1) pick the latest entry per ID
+      const latest = {};
+      dataArray.forEach(entry => {
+        const row = entry.values?.[0];
+        if (!row) return;
+        const [id, ts, , status, , , , , species] = row;
+        if (!allowedSpecies.has(species)) return;
+        const t = new Date(ts);
+        if (!latest[id] || t > new Date(latest[id].timeString)) {
+          latest[id] = { id, timeString: ts, status };
+        }
+      });
+
+      // 2) filter by processingStatus, then SORT BY numeric ID
+      const processing = Object.values(latest)
+        .filter(e => e.status === processingStatus)
+        .sort((a, b) => Number(a.id) - Number(b.id));
+
+      const newIds   = processing.map(e => String(e.id));
+      const added    = newIds.filter(id => !currentIds.includes(id));
+      const removed  = currentIds.filter(id => !newIds.includes(id));
+      const tbody    = document.getElementById("queue-table-body");
+
+      // remove rows that no longer qualify
+      removed.forEach(id => {
+        const row = document.querySelector(`tr[data-id="${id}"]`);
+        if (!row) return;
+        row.classList.add('exit');
+        row.addEventListener('animationend', () => row.remove(), { once: true });
+      });
+
+      // add any brand-new IDs
+      added.forEach(id => {
+        if (document.querySelector(`tr[data-id="${id}"]`)) return;
+        const tr = document.createElement("tr");
+        tr.dataset.id = id;
+        const numTd = document.createElement("td");
+        numTd.classList.add("number-cell");
+        const idTd  = document.createElement("td");
+        idTd.classList.add("id-cell");
+        idTd.textContent = id;
+        tr.append(numTd, idTd);
+        tr.classList.add('enter');
+        requestAnimationFrame(() => tr.classList.add('enter-active'));
+        tbody.appendChild(tr);
+      });
+
+      // reorder & renumber
+      newIds.forEach((id, idx) => {
+        const row = document.querySelector(`tr[data-id="${id}"]`);
+        if (!row) return;
+        tbody.appendChild(row);
+        row.querySelector("td.number-cell").textContent = idx + 1;
+      });
+
+      // highlight the next-in-line (first) row
+      tbody.querySelectorAll("tr").forEach((row, i) => {
+        row.classList.toggle("next-in-line", i === 0);
+      });
+
+      currentIds = newIds;
+    }
+
+    fetchAdoptionQueue();
+    setInterval(fetchAdoptionQueue, 10000);
+    setInterval(() => {
+      if (typeof dropPaw === 'function') dropPaw();
+    }, 25000);
+  </script>
+</body>
+</html>
