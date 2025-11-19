@@ -9,7 +9,7 @@ from azure.identity import DefaultAzureCredential
 from azure.keyvault.secrets import SecretClient
 
 # Load secrets from Azure Key Vault
-key_vault_url = "https://queueAppletKeys.vault.azure.net"
+key_vault_url = "https://queuekeys.vault.azure.net/"
 credential = DefaultAzureCredential()
 client = SecretClient(vault_url=key_vault_url, credential=credential)
 
@@ -83,7 +83,7 @@ def get_excel_table_data():
     # Only using one API URL now
     drive_id = "b!krrCtrL7AE2nJrEv5rPJCXDeAZm3RhhKnpCFzsTGwEuGGbk_qvSDS66mDdhJ50Eb"
     item_id = "01B6X2HITONNYICPHXQNBLDE36SJGP3GZA"
-    primary_table_name = "ParsedEntriesTable"  # Keep curly braces as needed
+    primary_table_name = "Table1"  # Keep curly braces as needed
 
     # Construct the API URL
     primary_url = f"https://graph.microsoft.com/v1.0/drives/{drive_id}/items/{item_id}/workbook/tables/{primary_table_name}/rows"
