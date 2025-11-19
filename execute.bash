@@ -4,9 +4,6 @@
 # Change to the project directory
 cd /var/www/scripts || exit
 
-# Ensure Python dependencies are installed
-pip3 install --user requests
-
 # Infinite loop to execute script every 15 seconds
 while true; do
     # Run the Python script (WITH absolute path)
